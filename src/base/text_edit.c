@@ -673,7 +673,11 @@ static ret_t text_edit_paint_line(text_edit_t* text_edit, canvas_t* c, line_info
 
   for (k = 0; k < iter->length; k++) {
     uint32_t offset = iter->offset + k;
-    wchar_t chr = impl->mask ? impl->mask_char : b.vis_str[k];
+    uint32_t cursor = state->cursor;
+    bool_t selected = offset >= select_start && offset < select_end;
+    bool_t preedit =
+          impl->preedit && offset < cursor && offset >= (cursor - impl->preedit_chars_nr);
+    wchar_t chr = (impl->mask && !preedit) ? impl->mask_char : b.vis_str[k];
     uint32_t char_w = canvas_measure_text(c, &chr, 1);
 
     if ((x + char_w) < view_left) {
@@ -688,11 +692,6 @@ static ret_t text_edit_paint_line(text_edit_t* text_edit, canvas_t* c, line_info
     if (chr != STB_TEXTEDIT_NEWLINE) {
       uint32_t rx = x - layout_info->ox;
       uint32_t ry = y - layout_info->oy;
-      uint32_t cursor = state->cursor;
-
-      bool_t selected = offset >= select_start && offset < select_end;
-      bool_t preedit =
-          impl->preedit && offset < cursor && offset >= (cursor - impl->preedit_chars_nr);
 
       if (selected || preedit) {
         color_t select_bg_color = style_get_color(style, STYLE_ID_SELECTED_BG_COLOR, white);
@@ -708,7 +707,7 @@ static ret_t text_edit_paint_line(text_edit_t* text_edit, canvas_t* c, line_info
       }
 
       /*FIXME: 密码编辑时，*字符本身偏高，看起来不像居中。但是无法拿到字模信息，只好手工修正一下。*/
-      if (impl->mask && impl->mask_char == '*') {
+      if (impl->mask && !preedit && impl->mask_char == '*') {
         int32_t oy = c->font_size / 6;
         canvas_draw_text(c, &chr, 1, rx, ry + oy);
       } else {
